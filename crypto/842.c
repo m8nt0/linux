@@ -18,132 +18,141 @@
  * drivers/crypto/nx/nx-842-crypto.c
  */
 
+#include <linux/slab.h> // For kmalloc and kfree
+#include <linux/errno.h> // For ERR_PTR and ENOMEM
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/sw842.h>
 #include <crypto/internal/scompress.h>
 
-struct crypto842_ctx {
-	void *wmem;	/* working memory for compress */
+#define SW842_MEM_COMPRESS 100 // Define the size of memory to allocate for the context
+
+// Define a structure representing the cryptographic compression transformation
+struct crypto_scomp {
+    // Structure members can be added here as needed
 };
 
-static void *crypto842_alloc_ctx(struct crypto_scomp *tfm)
-{
-	void *ctx;
+// Allocate memory for the context of the compression algorithm
+static void *crypto842_alloc_ctx(struct crypto_scomp *tfm) {
+    void *ctx;
 
-	ctx = kmalloc(SW842_MEM_COMPRESS, GFP_KERNEL);
-	if (!ctx)
-		return ERR_PTR(-ENOMEM);
+    // Allocate memory
+    ctx = kmalloc(SW842_MEM_COMPRESS, GFP_KERNEL);
+    if (!ctx)
+        return ERR_PTR(-ENOMEM); // Return error pointer if allocation fails
 
-	return ctx;
+    return ctx; // Return the allocated context
 }
 
-static int crypto842_init(struct crypto_tfm *tfm)
-{
-	struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
+// Initialize the context of the compression algorithm
+static int crypto842_init(struct crypto_tfm *tfm) {
+    struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	ctx->wmem = crypto842_alloc_ctx(NULL);
-	if (IS_ERR(ctx->wmem))
-		return -ENOMEM;
+    ctx->wmem = crypto842_alloc_ctx(NULL);
+    if (IS_ERR(ctx->wmem))
+        return PTR_ERR(ctx->wmem);
 
-	return 0;
+    return 0;
 }
 
-static void crypto842_free_ctx(struct crypto_scomp *tfm, void *ctx)
-{
-	kfree(ctx);
+// Free the memory allocated for the context of the compression algorithm
+static void crypto842_free_ctx(struct crypto_scomp *tfm, void *ctx) {
+    kfree(ctx);
 }
 
-static void crypto842_exit(struct crypto_tfm *tfm)
-{
-	struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
+// Clean up the resources used by the compression algorithm
+static void crypto842_exit(struct crypto_tfm *tfm) {
+    struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	crypto842_free_ctx(NULL, ctx->wmem);
+    crypto842_free_ctx(NULL, ctx->wmem);
 }
 
-static int crypto842_compress(struct crypto_tfm *tfm,
-			      const u8 *src, unsigned int slen,
-			      u8 *dst, unsigned int *dlen)
-{
-	struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
+// Perform compression using the 842 algorithm
+static int crypto842_compress(struct crypto_tfm *tfm, const u8 *src, unsigned int slen, u8 *dst, unsigned int *dlen) {
+    struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	return sw842_compress(src, slen, dst, dlen, ctx->wmem);
+    return sw842_compress(src, slen, dst, dlen, ctx->wmem);
 }
 
-static int crypto842_scompress(struct crypto_scomp *tfm,
-			       const u8 *src, unsigned int slen,
-			       u8 *dst, unsigned int *dlen, void *ctx)
-{
-	return sw842_compress(src, slen, dst, dlen, ctx);
+// Wrapper for compression function for the software compression API
+static int crypto842_scompress(struct crypto_scomp *tfm, const u8 *src, unsigned int slen, u8 *dst, unsigned int *dlen, void *ctx) {
+    return sw842_compress(src, slen, dst, dlen, ctx);
 }
 
-static int crypto842_decompress(struct crypto_tfm *tfm,
-				const u8 *src, unsigned int slen,
-				u8 *dst, unsigned int *dlen)
-{
-	return sw842_decompress(src, slen, dst, dlen);
+// Perform decompression using the 842 algorithm
+static int crypto842_decompress(struct crypto_tfm *tfm, const u8 *src, unsigned int slen, u8 *dst, unsigned int *dlen) {
+    return sw842_decompress(src, slen, dst, dlen);
 }
 
-static int crypto842_sdecompress(struct crypto_scomp *tfm,
-				 const u8 *src, unsigned int slen,
-				 u8 *dst, unsigned int *dlen, void *ctx)
-{
-	return sw842_decompress(src, slen, dst, dlen);
+// Wrapper for decompression function for the software compression API
+static int crypto842_sdecompress(struct crypto_scomp *tfm, const u8 *src, unsigned int slen, u8 *dst, unsigned int *dlen, void *ctx) {
+    return sw842_decompress(src, slen, dst, dlen);
 }
 
+// Define the cryptographic algorithm properties
 static struct crypto_alg alg = {
-	.cra_name		= "842",
-	.cra_driver_name	= "842-generic",
-	.cra_priority		= 100,
-	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
-	.cra_ctxsize		= sizeof(struct crypto842_ctx),
-	.cra_module		= THIS_MODULE,
-	.cra_init		= crypto842_init,
-	.cra_exit		= crypto842_exit,
-	.cra_u			= { .compress = {
-	.coa_compress		= crypto842_compress,
-	.coa_decompress		= crypto842_decompress } }
+    .cra_name        = "842",
+    .cra_driver_name = "842-generic",
+    .cra_priority    = 100,
+    .cra_flags       = CRYPTO_ALG_TYPE_COMPRESS,
+    .cra_ctxsize     = sizeof(struct crypto842_ctx),
+    .cra_module      = THIS_MODULE,
+    .cra_init        = crypto842_init,
+    .cra_exit        = crypto842_exit,
+    .cra_u           = {
+        .compress = {
+            .coa_compress   = crypto842_compress,
+            .coa_decompress = crypto842_decompress
+        }
+    }
 };
 
+// Define the software compression algorithm properties
 static struct scomp_alg scomp = {
-	.alloc_ctx		= crypto842_alloc_ctx,
-	.free_ctx		= crypto842_free_ctx,
-	.compress		= crypto842_scompress,
-	.decompress		= crypto842_sdecompress,
-	.base			= {
-		.cra_name	= "842",
-		.cra_driver_name = "842-scomp",
-		.cra_priority	 = 100,
-		.cra_module	 = THIS_MODULE,
-	}
+    .alloc_ctx = crypto842_alloc_ctx,
+    .free_ctx  = crypto842_free_ctx,
+    .compress  = crypto842_scompress,
+    .decompress= crypto842_sdecompress,
+    .base = {
+        .cra_name        = "842",
+        .cra_driver_name = "842-scomp",
+        .cra_priority    = 100,
+        .cra_module      = THIS_MODULE,
+    }
 };
 
-static int __init crypto842_mod_init(void)
-{
-	int ret;
+// Module initialization function
+static int __init crypto842_mod_init(void) {
+    int ret;
 
-	ret = crypto_register_alg(&alg);
-	if (ret)
-		return ret;
+    // Register the cryptographic algorithm
+    ret = crypto_register_alg(&alg);
+    if (ret)
+        return ret;
 
-	ret = crypto_register_scomp(&scomp);
-	if (ret) {
-		crypto_unregister_alg(&alg);
-		return ret;
-	}
+    // Register the software compression algorithm
+    ret = crypto_register_scomp(&scomp);
+    if (ret) {
+        crypto_unregister_alg(&alg);
+        return ret;
+    }
 
-	return ret;
+    return ret;
 }
-subsys_initcall(crypto842_mod_init);
+module_init(crypto842_mod_init);
 
-static void __exit crypto842_mod_exit(void)
-{
-	crypto_unregister_alg(&alg);
-	crypto_unregister_scomp(&scomp);
+// Module exit function
+static void __exit crypto842_mod_exit(void) {
+    // Unregister the cryptographic algorithm
+    crypto_unregister_alg(&alg);
+
+    // Unregister the software compression algorithm
+    crypto_unregister_scomp(&scomp);
 }
 module_exit(crypto842_mod_exit);
 
+// Module metadata
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("842 Software Compression Algorithm");
 MODULE_ALIAS_CRYPTO("842");
