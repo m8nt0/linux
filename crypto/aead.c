@@ -124,8 +124,7 @@ int crypto_aead_encrypt(struct aead_request *req)
 }
 EXPORT_SYMBOL_GPL(crypto_aead_encrypt);
 
-int crypto_aead_decrypt(struct aead_request *req)
-{
+int crypto_aead_decrypt(struct aead_request *req) {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct aead_alg *alg = crypto_aead_alg(aead);
 	struct crypto_istat_aead *istat;
@@ -147,18 +146,17 @@ int crypto_aead_decrypt(struct aead_request *req)
 
 	return crypto_aead_errstat(istat, ret);
 }
+
 EXPORT_SYMBOL_GPL(crypto_aead_decrypt);
 
-static void crypto_aead_exit_tfm(struct crypto_tfm *tfm)
-{
+static void crypto_aead_exit_tfm(struct crypto_tfm *tfm) {
 	struct crypto_aead *aead = __crypto_aead_cast(tfm);
 	struct aead_alg *alg = crypto_aead_alg(aead);
 
 	alg->exit(aead);
 }
 
-static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
-{
+static int crypto_aead_init_tfm(struct crypto_tfm *tfm) {
 	struct crypto_aead *aead = __crypto_aead_cast(tfm);
 	struct aead_alg *alg = crypto_aead_alg(aead);
 

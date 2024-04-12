@@ -127,14 +127,14 @@ struct posix_acl *v9fs_iop_get_inode_acl(struct inode *inode, int type, bool rcu
 		return ERR_PTR(-ECHILD);
 
 	v9ses = v9fs_inode2v9ses(inode);
-	if (((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) ||
-			((v9ses->flags & V9FS_ACL_MASK) != V9FS_POSIX_ACL)) {
+	if (((v9ses->flags & V9FS_ACCESS_MASK) != V9FS_ACCESS_CLIENT) || ((v9ses->flags & V9FS_ACL_MASK) != V9FS_POSIX_ACL)) {
 		/*
 		 * On access = client  and acl = on mode get the acl
 		 * values from the server
 		 */
 		return NULL;
 	}
+	
 	return v9fs_get_cached_acl(inode, type);
 
 }
